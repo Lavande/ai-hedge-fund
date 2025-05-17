@@ -8,7 +8,7 @@ import json
 import pandas as pd
 import numpy as np
 
-from src.tools.api import get_prices, prices_to_df
+from src.tools.api import get_prices, prices_to_df, get_crypto_prices, crypto_prices_to_df
 from src.utils.progress import progress
 
 
@@ -26,6 +26,7 @@ def technical_analyst_agent(state: AgentState):
     start_date = data["start_date"]
     end_date = data["end_date"]
     tickers = data["tickers"]
+    is_crypto = data.get("crypto", False)
 
     # Initialize analysis for each ticker
     technical_analysis = {}
@@ -34,18 +35,35 @@ def technical_analyst_agent(state: AgentState):
         progress.update_status("technical_analyst_agent", ticker, "Analyzing price data")
 
         # Get the historical price data
-        prices = get_prices(
-            ticker=ticker,
-            start_date=start_date,
-            end_date=end_date,
-        )
+        if is_crypto:
+            progress.update_status("technical_analyst_agent", ticker, "Fetching crypto price data")
+            prices = get_crypto_prices(
+                ticker=ticker,
+                start_date=start_date,
+                end_date=end_date,
+                interval="day",
+                interval_multiplier=1
+            )
+            
+            if not prices:
+                progress.update_status("technical_analyst_agent", ticker, "Failed: No crypto price data found")
+                continue
+                
+            # Convert prices to a DataFrame
+            prices_df = crypto_prices_to_df(prices)
+        else:
+            prices = get_prices(
+                ticker=ticker,
+                start_date=start_date,
+                end_date=end_date,
+            )
 
-        if not prices:
-            progress.update_status("technical_analyst_agent", ticker, "Failed: No price data found")
-            continue
+            if not prices:
+                progress.update_status("technical_analyst_agent", ticker, "Failed: No price data found")
+                continue
 
-        # Convert prices to a DataFrame
-        prices_df = prices_to_df(prices)
+            # Convert prices to a DataFrame
+            prices_df = prices_to_df(prices)
 
         progress.update_status("technical_analyst_agent", ticker, "Calculating trend signals")
         trend_signals = calculate_trend_signals(prices_df)

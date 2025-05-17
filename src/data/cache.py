@@ -7,6 +7,7 @@ class Cache:
         self._line_items_cache: dict[str, list[dict[str, any]]] = {}
         self._insider_trades_cache: dict[str, list[dict[str, any]]] = {}
         self._company_news_cache: dict[str, list[dict[str, any]]] = {}
+        self._crypto_prices_cache: dict[str, list[dict[str, any]]] = {}
 
     def _merge_data(self, existing: list[dict] | None, new_data: list[dict], key_field: str) -> list[dict]:
         """Merge existing and new data, avoiding duplicates based on a key field."""
@@ -28,6 +29,14 @@ class Cache:
     def set_prices(self, ticker: str, data: list[dict[str, any]]):
         """Append new price data to cache."""
         self._prices_cache[ticker] = self._merge_data(self._prices_cache.get(ticker), data, key_field="time")
+
+    def get_crypto_prices(self, ticker: str) -> list[dict[str, any]] | None:
+        """Get cached cryptocurrency price data if available."""
+        return self._crypto_prices_cache.get(ticker)
+
+    def set_crypto_prices(self, ticker: str, data: list[dict[str, any]]):
+        """Append new cryptocurrency price data to cache."""
+        self._crypto_prices_cache[ticker] = self._merge_data(self._crypto_prices_cache.get(ticker), data, key_field="time")
 
     def get_financial_metrics(self, ticker: str) -> list[dict[str, any]]:
         """Get cached financial metrics if available."""

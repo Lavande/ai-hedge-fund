@@ -15,6 +15,27 @@ class PriceResponse(BaseModel):
     prices: list[Price]
 
 
+# Adding models for cryptocurrency data
+class CryptoPrice(BaseModel):
+    open: float
+    close: float
+    high: float
+    low: float
+    volume: float  # Changed from int to float
+    time: str
+    time_milliseconds: int | None = None
+    ticker: str | None = None  # Add ticker field which may be in the price records
+
+
+class CryptoPricesInner(BaseModel):
+    prices: list[CryptoPrice]
+
+
+class CryptoPriceResponse(BaseModel):
+    ticker: str
+    prices: CryptoPricesInner
+
+
 class FinancialMetrics(BaseModel):
     ticker: str
     report_period: str

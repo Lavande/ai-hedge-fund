@@ -11,6 +11,8 @@ from src.data.models import (
     FinancialMetricsResponse,
     Price,
     PriceResponse,
+    CryptoPrice,
+    CryptoPriceResponse,
     LineItem,
     LineItemResponse,
     InsiderTrade,
@@ -50,6 +52,43 @@ def get_prices(ticker: str, start_date: str, end_date: str) -> list[Price]:
 
     # Cache the results as dicts
     _cache.set_prices(ticker, [p.model_dump() for p in prices])
+    return prices
+
+
+def get_crypto_prices(ticker: str, start_date: str, end_date: str, interval: str = "day", interval_multiplier: int = 1) -> list[CryptoPrice]:
+    """Fetch cryptocurrency price data from cache or API."""
+    # Check cache first
+    if cached_data := _cache.get_crypto_prices(ticker):
+        # Filter cached data by date range and convert to CryptoPrice objects
+        filtered_data = [CryptoPrice(**price) for price in cached_data if start_date <= price["time"] <= end_date]
+        if filtered_data:
+            return filtered_data
+
+    # If not in cache or no data in range, fetch from API
+    headers = {}
+    if api_key := os.environ.get("FINANCIAL_DATASETS_API_KEY"):
+        headers["X-API-KEY"] = api_key
+
+    url = f"https://api.financialdatasets.ai/crypto/prices/?ticker={ticker}&interval={interval}&interval_multiplier={interval_multiplier}&start_date={start_date}&end_date={end_date}"
+    response = requests.get(url, headers=headers)
+    if response.status_code != 200:
+        raise Exception(f"Error fetching crypto data: {ticker} - {response.status_code} - {response.text}")
+
+    # Parse response JSON
+    response_data = response.json()
+    # Handle the nested structure: response_data -> prices -> prices array
+    if "prices" in response_data and isinstance(response_data["prices"], dict) and "prices" in response_data["prices"]:
+        prices_data = response_data["prices"]["prices"]
+        prices = [CryptoPrice(**price) for price in prices_data]
+    else:
+        # Handle case where the API response structure is different
+        return []
+
+    if not prices:
+        return []
+
+    # Cache the results as dicts
+    _cache.set_crypto_prices(ticker, [p.model_dump() for p in prices])
     return prices
 
 
@@ -294,7 +333,27 @@ def prices_to_df(prices: list[Price]) -> pd.DataFrame:
     return df
 
 
+def crypto_prices_to_df(prices: list[CryptoPrice]) -> pd.DataFrame:
+    """Convert cryptocurrency prices to a DataFrame."""
+    df = pd.DataFrame([p.model_dump() for p in prices])
+    df["Date"] = pd.to_datetime(df["time"])
+    df.set_index("Date", inplace=True)
+    numeric_cols = ["open", "close", "high", "low", "volume"]
+    if "time_milliseconds" in df.columns:
+        numeric_cols.append("time_milliseconds")
+    for col in numeric_cols:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+    df.sort_index(inplace=True)
+    return df
+
+
 # Update the get_price_data function to use the new functions
 def get_price_data(ticker: str, start_date: str, end_date: str) -> pd.DataFrame:
     prices = get_prices(ticker, start_date, end_date)
     return prices_to_df(prices)
+
+
+# Function to get cryptocurrency price data
+def get_crypto_price_data(ticker: str, start_date: str, end_date: str, interval: str = "day", interval_multiplier: int = 1) -> pd.DataFrame:
+    prices = get_crypto_prices(ticker, start_date, end_date, interval, interval_multiplier)
+    return crypto_prices_to_df(prices)

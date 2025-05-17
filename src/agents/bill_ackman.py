@@ -25,11 +25,22 @@ def bill_ackman_agent(state: AgentState):
     data = state["data"]
     end_date = data["end_date"]
     tickers = data["tickers"]
+    crypto = data.get("crypto", False)
     
     analysis_data = {}
     ackman_analysis = {}
     
     for ticker in tickers:
+        # Skip cryptocurrency analysis with Bill Ackman agent - not suitable for crypto analysis
+        if crypto and ("-USD" in ticker or ticker.endswith("USD") or ticker.startswith("BTC") or ticker.startswith("ETH")):
+            # Create a default neutral signal for cryptocurrencies
+            ackman_analysis[ticker] = {
+                "signal": "neutral",
+                "confidence": 0.0,
+                "reasoning": "Bill Ackman's investment approach focuses on businesses with strong cash flows, brand value, and operational improvements - metrics that aren't applicable to cryptocurrencies which lack traditional business fundamentals."
+            }
+            continue
+        
         progress.update_status("bill_ackman_agent", ticker, "Fetching financial metrics")
         metrics = get_financial_metrics(ticker, end_date, period="annual", limit=5)
         

@@ -12,11 +12,22 @@ def fundamentals_agent(state: AgentState):
     data = state["data"]
     end_date = data["end_date"]
     tickers = data["tickers"]
+    crypto = data.get("crypto", False)
 
     # Initialize fundamental analysis for each ticker
     fundamental_analysis = {}
 
     for ticker in tickers:
+        # Skip cryptocurrency analysis with fundamental analysis agent - cryptocurrencies don't have traditional fundamentals
+        if crypto and ("-USD" in ticker or ticker.endswith("USD") or ticker.startswith("BTC") or ticker.startswith("ETH")):
+            # Create a default neutral signal for cryptocurrencies
+            fundamental_analysis[ticker] = {
+                "signal": "neutral",
+                "confidence": 0.0,
+                "reasoning": "Traditional fundamental analysis is not applicable to cryptocurrencies as they don't have financial statements, earnings, or conventional business metrics."
+            }
+            continue
+
         progress.update_status("fundamentals_agent", ticker, "Fetching financial metrics")
 
         # Get the financial metrics

@@ -7,6 +7,7 @@ from app.backend.models.events import StartEvent, ProgressUpdateEvent, ErrorEven
 from app.backend.services.graph import create_graph, parse_hedge_fund_response, run_graph_async
 from app.backend.services.portfolio import create_portfolio
 from src.utils.progress import progress
+from src.llm.models import ModelProvider
 
 router = APIRouter(prefix="/hedge-fund")
 
@@ -34,10 +35,14 @@ async def run_hedge_fund(request: HedgeFundRequest):
         # Log a test progress update for debugging
         progress.update_status("system", None, "Preparing hedge fund run")
 
-        # Convert model_provider to string if it's an enum
+        # 修正 model_provider 处理
         model_provider = request.model_provider
         if hasattr(model_provider, "value"):
             model_provider = model_provider.value
+        
+        # 根据模型名称确定正确的 model_provider
+        if request.model_name.startswith("deepseek"):
+            model_provider = ModelProvider.DEEPSEEK.value
 
         # Set up streaming response
         async def event_generator():
@@ -63,6 +68,7 @@ async def run_hedge_fund(request: HedgeFundRequest):
                         end_date=request.end_date,
                         model_name=request.model_name,
                         model_provider=model_provider,
+                        crypto=request.crypto,
                     )
                 )
                 # Send initial message

@@ -20,12 +20,23 @@ def warren_buffett_agent(state: AgentState):
     data = state["data"]
     end_date = data["end_date"]
     tickers = data["tickers"]
+    crypto = data.get("crypto", False)
 
     # Collect all analysis for LLM reasoning
     analysis_data = {}
     buffett_analysis = {}
 
     for ticker in tickers:
+        # Skip cryptocurrency analysis with Warren Buffett agent - he doesn't analyze crypto
+        if crypto and ("-USD" in ticker or ticker.endswith("USD") or ticker.startswith("BTC") or ticker.startswith("ETH")):
+            # Create a default neutral signal for cryptocurrencies
+            buffett_analysis[ticker] = {
+                "signal": "neutral",
+                "confidence": 0.0,
+                "reasoning": "Warren Buffett's fundamental analysis methods are not applicable to cryptocurrencies as they don't have traditional financial metrics like earnings, P/E ratios, or cash flows."
+            }
+            continue
+
         progress.update_status("warren_buffett_agent", ticker, "Fetching financial metrics")
         # Fetch required data
         metrics = get_financial_metrics(ticker, end_date, period="ttm", limit=5)

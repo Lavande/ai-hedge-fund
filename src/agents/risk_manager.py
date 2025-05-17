@@ -1,7 +1,7 @@
 from langchain_core.messages import HumanMessage
 from src.graph.state import AgentState, show_agent_reasoning
 from src.utils.progress import progress
-from src.tools.api import get_prices, prices_to_df
+from src.tools.api import get_prices, prices_to_df, get_crypto_prices, crypto_prices_to_df
 import json
 
 
@@ -11,6 +11,7 @@ def risk_management_agent(state: AgentState):
     portfolio = state["data"]["portfolio"]
     data = state["data"]
     tickers = data["tickers"]
+    is_crypto = data.get("crypto", False)
 
     # Initialize risk analysis for each ticker
     risk_analysis = {}
@@ -19,17 +20,34 @@ def risk_management_agent(state: AgentState):
     for ticker in tickers:
         progress.update_status("risk_management_agent", ticker, "Analyzing price data")
 
-        prices = get_prices(
-            ticker=ticker,
-            start_date=data["start_date"],
-            end_date=data["end_date"],
-        )
+        # Use the appropriate API call based on whether we're dealing with crypto or stocks
+        if is_crypto:
+            progress.update_status("risk_management_agent", ticker, "Fetching crypto price data")
+            prices = get_crypto_prices(
+                ticker=ticker,
+                start_date=data["start_date"],
+                end_date=data["end_date"],
+                interval="day",
+                interval_multiplier=1
+            )
+            
+            if not prices:
+                progress.update_status("risk_management_agent", ticker, "Failed: No crypto price data found")
+                continue
+                
+            prices_df = crypto_prices_to_df(prices)
+        else:
+            prices = get_prices(
+                ticker=ticker,
+                start_date=data["start_date"],
+                end_date=data["end_date"],
+            )
 
-        if not prices:
-            progress.update_status("risk_management_agent", ticker, "Failed: No price data found")
-            continue
+            if not prices:
+                progress.update_status("risk_management_agent", ticker, "Failed: No price data found")
+                continue
 
-        prices_df = prices_to_df(prices)
+            prices_df = prices_to_df(prices)
 
         progress.update_status("risk_management_agent", ticker, "Calculating position limits")
 
